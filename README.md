@@ -6,8 +6,8 @@ The purpose of the project is to present the deep learning model we created duri
 
 # Introduction
 
-For our deep learning project, we wanted to stay on the classification image field and try to reuse all the method learn during the course and manipulate more precisely some concept. We choose a kaggle competition so that we did not need to worry about gathering enough data ourselves.
-The purpose of this competition was to develop a machine learning model that could identify individual whales in images. Similar competition existed, but were more focused on the species of the whale. Here each class should actually represent one whale, identify by an Id. This model would then be used by associations to monitor whales activities quickly and help scientists understanding the mammal population dynamic in the world. 
+For our deep learning project, we wanted to stay on the classification image field and try to reuse all the methods learnt during the course and manipulate more precisely some concepts. We chose a Kaggle competition so that we did not need to worry about gathering enough data ourselves.
+The purpose of this competition was to develop a machine learning model that could identify individual whales in images. Similar competitions existed, but were more focused on the species of the whale. Here each class should actually represent one whale, identify by an Id. This model would then be used by associations to monitor whales activities quickly and help scientists understanding the mammal population dynamic in the world. 
 The happywhale's database contains 25,000 images of whales tails, gathered from many places (institutions and public contributors).
 
 # Method presentation
@@ -17,7 +17,7 @@ This kaggle dataset was not structured like most deep learning classification pr
 
 ## Overfitting
 
-Since we had our hands on the real data, we decided to first overfit our simplest model on a small amount of data, and focus on the training accuracy above anything else. 
+Since we had our hands on the real data, we decided to first overfit our simplest model on a small amount of data, and focus on the training accuracy and training loss above anything else. 
 We first had to select the images. We simply decided to take the first X row of the train.csv file and selecting afterwards all images which id were present in the rows.
 
 ## Data preparation
@@ -29,9 +29,9 @@ Then, we simply encoded the label (id of the individual whale) of the train.csv 
 
 ### model 1 : to overfit
 
-We tried different model and techniques to resolve the problem. Our first model was the one we used for overfitting, a simple Sequential CNN, which was still a bit deeper than any models we developed during the course. We used Convolutionnal and Max pooling layers to reduce the image size. We added batch normalization layers since we read that it could make our model training faster and more stable. We also decided to add one dropout layer, to avoid too much overfitting. We then added simple dense layers with a softmax activation to normalize the outputs to a probability distribution over predicted output classes. 
+We tried different models and techniques to resolve the problem. Our first model was the one we used for overfitting, a simple Sequential CNN, which was still a bit deeper than any models we developed during the course. We used Convolutionnal and Max pooling layers to reduce the image size. We added batch normalization layers since we read that it could make our model training faster and more stable. We also decided to add one dropout layer, to avoid too much overfitting. We then added simple dense layers with a softmax activation to normalize the outputs to a probability distribution over predicted output classes. 
 
-For the optimizer we choose Adam and a reduce learning rate on plateau.
+For the optimizer we choose Adam and we also introduced a reduce learning rate on plateau callback to help reduce the learning rate when the monitored metric (which is here the training loss first) began to stagnate.
 ```py
 def get_model():
 
@@ -72,7 +72,7 @@ model.compile(optimizer = optimizer, loss = 'categorical_crossentropy', metrics=
 base_model_history = model.fit(X_train, y_train, epochs=40, validation_split=0.3, callbacks=[learning_rate_reduction])
 ```
 
-We did a really good job for overfitting, with our first model achieving an accuracy 1 : 
+We did a really good job for overfitting, with our first model achieving an accuracy 1 and a loss of almost 0: 
 ```txt
 Epoch 00040: ReduceLROnPlateau reducing learning rate to 0.00010737419361248613.
 438/438 [==============================] - 31s 70ms/step - loss: 5.4193e-04 - accuracy: 1.0000 - val_loss: 10.7260 - val_accuracy: 0.3360 - lr: 1.3422e-04
@@ -86,7 +86,7 @@ Epoch 00040: ReduceLROnPlateau reducing learning rate to 0.00010737419361248613.
 
 ### model 2 : add dropout
 
-Since our first model did really good at overfitting, we decided to simply add more dropout layers (all with a factor of 0.3) between the dense one to decrease the overfitting.
+Since our first model did really good at overfitting, we decided to simply add more dropout layers (all with a factor of 0.3) between the dense one to decrease the overfitting. This time, we also decided to monitor the validation loss in the ReduceLROnPlateau callback instead of the training loss like we did before.
 
 ![model with dropout Accuracy](imagesForReadme/baseWithDropoutAccuracy.png)
 
@@ -94,9 +94,9 @@ Since our first model did really good at overfitting, we decided to simply add m
 ![model with dropout Loss](imagesForReadme/baseWithDropoutLoss.png)
 
 
-### model 3 : data generation
+### model 3 : dropout + data generation
 
-To still decrease the overfitting, we decided to try and use datageneration techniques to add more data. This was quite difficult because of the project data structure (all data in one directory and one csv file for the class matching). Because most project base themselves on a structured file system, we had a hard time fiding a datageneration technique that could handle such data. Fortunately, after a bit of research, we discovered that someone actually developed a new method in keras that handled the kind of representation we had (flow_from_dataframe).
+To still decrease the overfitting, we decided to try and use datageneration techniques to add more data. This was quite difficult because of the project data structure (all data in one directory and one csv file for the class matching). Because most project base themselves on a structured file system, we had a hard time finding a datageneration technique that could handle such data. Fortunately, after a bit of research, we discovered that someone actually developed a new method in keras that handled the kind of representation we had (flow_from_dataframe).
 
 This model was interesting to build however it took a lot of time to train. With 10 epochs it took 20 minutes to process the data. Moreover the result were not as good as expected, event for the tenth epoch (for the vanilla model we had a val_accuracy of 0.3110 at the tenth layer, here a val_accuracy of 0.3862) : 
 
@@ -106,7 +106,7 @@ This model was interesting to build however it took a lot of time to train. With
 ![model with data generation Loss](imagesForReadme/dataGenWithDropoutLoss.png)
 
 
-### model 4 : transfer learning
+### model 4 : dropout + transfer learning
 
 For our last tentative to decrease overfitting, we tried to use transfer learning. We choose for our base model ResNet50V2, which seemed to be an efficient model with a reasonable size (98), a quick process time (CPU : 45.6ms, GPU : 4.4ms) and an overall good accuracy (76.0%). 
 
