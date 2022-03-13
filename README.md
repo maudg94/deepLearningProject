@@ -2,7 +2,7 @@
 
 # Abstract 
 
-The purpose of the project is to present the deep learning model we created during our final project for the deep learning course at EFREI. 
+The purpose of the project is to present the deep learning model we created during our final project for the deep learning course at EFREI. We've chosen to learn more about image classification as it was a subject that interested us from the beginning and because it has many applications from fake news detection to computer vision. We wanted to apply what we had learnt during our deep learning course on a real case and for that we chose a Kaggle competition as explained further. Therefore, we had the opportunity to try various techniques and compare them.
 
 # Introduction
 
@@ -27,7 +27,7 @@ Then, we simply encoded the label (id of the individual whale) of the train.csv 
 
 ## The models
 
-### model 1 : to overfit
+### model 1 : overfitting
 
 We tried different models and techniques to resolve the problem. Our first model was the one we used for overfitting, a simple Sequential CNN, which was still a bit deeper than any models we developed during the course. We used Convolutionnal and Max pooling layers to reduce the image size. We added batch normalization layers since we read that it could make our model training faster and more stable. We also decided to add one dropout layer, to avoid too much overfitting. We then added simple dense layers with a softmax activation to normalize the outputs to a probability distribution over predicted output classes. 
 
@@ -56,20 +56,25 @@ def get_model():
   model.add(Flatten())
   model.add(Dense(256, activation = 'relu'))
   model.add(BatchNormalization())
-  model.add(Dense(y_train.shape[0], activation = 'softmax'))
+  model.add(Dense(y_train_class_count, activation = 'softmax'))
   return model
 
 optimizer = Adam(lr = 0.001, beta_1 = 0.9, beta_2 = 0.999)
 
-learning_rate_reduction = ReduceLROnPlateau(monitor='loss', 
-                                            patience=1, 
-                                            verbose=1, 
-                                            factor=0.8, 
-                                            min_lr=0.00001)
+# Set a learning rate scheduler
+def get_lr_reduction_callback(monitored_loss):
+  """
+  monitored_loss can either be loss or val_loss.
+  """
+  return ReduceLROnPlateau(monitor=monitored_loss, 
+                           patience=1, 
+                           verbose=1, 
+                           factor=0.8, 
+                           min_lr=0.00001)
 
-model.compile(optimizer = optimizer, loss = 'categorical_crossentropy', metrics=['accuracy'])
+model.compile(optimizer = optimizer, loss = 'sparse_categorical_crossentropy', metrics=['accuracy'])
 
-base_model_history = model.fit(X_train, y_train, epochs=40, validation_split=0.3, callbacks=[learning_rate_reduction])
+base_model_history = model.fit(X_train, y_train, epochs=40, validation_split=0.3, callbacks=[get_lr_reduction_callback('loss')])
 ```
 
 We did a really good job for overfitting, with our first model achieving an accuracy 1 and a loss of almost 0: 
@@ -86,29 +91,32 @@ Epoch 00040: ReduceLROnPlateau reducing learning rate to 0.00010737419361248613.
 
 ### model 2 : add dropout
 
-Since our first model did really good at overfitting, we decided to simply add more dropout layers (all with a factor of 0.3) between the dense one to decrease the overfitting. This time, we also decided to monitor the validation loss in the ReduceLROnPlateau callback instead of the training loss like we did before.
+Since our first model did really good at overfitting, we decided to simply add more dropout layers (all with a factor of 0.3) between the dense ones to decrease the overfitting. This time, we also decided to monitor the validation loss in the ReduceLROnPlateau callback instead of the training loss like we did before.
 
 ![model with dropout Accuracy](imagesForReadme/baseWithDropoutAccuracy.png)
 
 
 ![model with dropout Loss](imagesForReadme/baseWithDropoutLoss.png)
 
+The training accuracy got very degraded along the training loss, however, the validation loss decreased from 10 to 6.8 and the validation accuracy increased from 0.33 to 0.37.
+
 
 ### model 3 : dropout + data generation
 
 To still decrease the overfitting, we decided to try and use datageneration techniques to add more data. This was quite difficult because of the project data structure (all data in one directory and one csv file for the class matching). Because most project base themselves on a structured file system, we had a hard time finding a datageneration technique that could handle such data. Fortunately, after a bit of research, we discovered that someone actually developed a new method in keras that handled the kind of representation we had (flow_from_dataframe).
 
-This model was interesting to build however it took a lot of time to train. With 10 epochs it took 20 minutes to process the data. Moreover the result were not as good as expected, event for the tenth epoch (for the vanilla model we had a val_accuracy of 0.3110 at the tenth layer, here a val_accuracy of 0.3862) : 
+This model was interesting to build however it took a lot of time to train. With 10 epochs it took 20 minutes to process the data. Moreover the result were not as good as expected, event for the tenth epoch (for the vanilla model we had a val_accuracy of 0.3110 at the tenth layer, here a val_accuracy of 0.3886) :
 
 ![model with data generation Accuracy](imagesForReadme/dataGenWithDropoutAccuracy.png)
 
 
 ![model with data generation Loss](imagesForReadme/dataGenWithDropoutLoss.png)
 
+The training accuracy got a bit degraded along the training loss compared to dropout-only vanilla model, however, the validation loss decreased from 6.8104 to 6.5707 and the validation accuracy increased from 0.3767 to 0.3886.
 
 ### model 4 : dropout + transfer learning
 
-For our last tentative to decrease overfitting, we tried to use transfer learning. We choose for our base model ResNet50V2, which seemed to be an efficient model with a reasonable size (98), a quick process time (CPU : 45.6ms, GPU : 4.4ms) and an overall good accuracy (76.0%). 
+Here we tried to use transfer learning. We chose for our base model ResNet50V2, which seemed to be an efficient model with a reasonable size (98), a quick process time (CPU : 45.6ms, GPU : 4.4ms) and an overall good accuracy (76.0%). 
 
 ![transfer learning Accuracy](imagesForReadme/TFAccuracy.png)
 
@@ -116,7 +124,9 @@ For our last tentative to decrease overfitting, we tried to use transfer learnin
 ![transfer learning Loss](imagesForReadme/TFLoss.png)
 
 
-As you can see, our transfer learning model has a better val_accuracy than our base model at the last epoch (0.3570).
+As you can see, our transfer learning model has a better val_accuracy than our base model at the last epoch (0.3593).
+
+The training accuracy has improved along the training loss compared to dropout-datagen vanilla model, however, the validation loss increased from 6.5707 to 6.7016 and the validation accuracy decreased from 0.3886 to 0.3593.
 
 ### model 5 : transfer learning + data generation
 
@@ -127,20 +137,36 @@ after trying a simple transfer learning, we tried it with data generation (like 
 
 ![transfer learning and data generation Loss](imagesForReadme/TFDataGenLoss.png)
 
-Once again, the training took a long time and the val_accuracy was better that our vanilla model, but still not as good as the simple model (no transfer learning) with data generation (0.3845).
+Once again, the training took a long time (around 20-25 mins with ~2 mins per epoch) and the validation accuracy was better that our vanilla model, but still not as good as the simple model (no transfer learning) with data generation (0.3855 < 0.3886).
 
-### model 6 : early stopping
+The training accuracy got degraded along the training loss compared to dropout-datagen transfer learning model, however, the validation loss decreased from 6.7016 to 6.5089 which did not beat the dropout + datagen vanilla model and the validation accuracy increased from 0.3593 to 0.3896 which is the best validation accuracy so far.
+
+### model 6 : transfer learning + dropout + early stopping
+
+As data generation did not seem to do a better job than vanilla transfer learning, we chose to add the EarlyStopping callback to the base transfer learning model instead. It still aligns with our goal of reducing overfitting along with maintaining better overall training and validation metrics than with data generation.
+Like previously, we've chosen to monitor the validation loss in the EarlyStopping callback.
+
+![transfer learning and dropout and early stopping Accuracy](imagesForReadme/TFDropoutEarlyStoppingAccuracy.png)
+
+![transfer learning and dropout and early stopping Loss](imagesForReadme/TFDropoutEarlyStoppingLoss.png)
+
+
+The training stopped after only 2 epochs out of 10 available. However, the validation loss dropped to 6.1305 which is the best validation loss so far. The other metrics are comparable to the previous model.
 
 ### model 7 : grid search 
 
-Since the data generation took too long, for the last part, we decided to go with our vanilla model without dropout, since it has the best accuracy and loss. 
+Since the data generation took too long, for the last part, we decided to go with our transfer learning model with dropout (without early stopping), since it has the best training accuracy among the non-overfitted models,  and because the validation metrics were among the best. 
+For that, we've used the KerasClassifier class from the scikeras library which provides integration with the sklearn tools like GridSearch which we will use here. We've tried optimizers among 'adam', 'sgd', 'adamax' and 'nadam'.
 
+Stochastic gradient descent seems to have done the best job here :
 
+![transfer learning and dropout Grid search Accuracy](imagesForReadme/TFDropoutGridSearchAccuracy.png)
+
+![transfer learning and dropout Grid search Loss](imagesForReadme/TFDropoutGridSearchLoss.png)
 
 ## Encountered difficulties 
 The first main difficulty we faced was the one of the data. Since each image of the dataset was quite large (100~500ko/image) we did not manage to use deepnote as our model development tool. We had to use collab, but this was actually almost impossible to work concurrently. So we decided to work in peer programming, while one was writing, the other could look for documentation quickly and search solution in advance.
-We also had some issues regarding the training time. Indeed, when we took more than 10 000 images all our models took very long to train (especially the model 3), so we decided to test our models only on 10 000 images and for maximum 10 epochs (event if we tried with 40 epochs for the most basic ones). This is probably why we did not have such great result, but we just had memory and ram issues if we increase the number of data too much.
-
+We also had some issues regarding the training time. Indeed, when we took more than 10 000 images all our models took very long to train (especially the models with data generation), so we decided to test our models only on 10 000 images and for maximum 10 epochs (even if we tried with 40 epochs for the most basic ones). This is probably why we did not have such great result, but we just had memory and ram issues if we increase the number of data too much.
 
 ## Conclusion 
 
@@ -149,5 +175,9 @@ If we had more time, we would have liked to try the deeper network also seen in 
 
 
 ## Sources 
-datageneration with flow_from_dataframe : https://vijayabhaskar96.medium.com/tutorial-on-keras-flow-from-dataframe-1fd4493d237c
-recipe for overfitting : https://karpathy.github.io/2019/04/25/recipe/
+
+- [Humpback Whale Identification Kaggle competition](https://www.kaggle.com/c/humpback-whale-identification/overview)
+
+- [Data generation with flow_from_dataframe](https://vijayabhaskar96.medium.com/tutorial-on-keras-flow-from-dataframe-1fd4493d237c)
+
+- [Recipe for overfitting](https://karpathy.github.io/2019/04/25/recipe/)
