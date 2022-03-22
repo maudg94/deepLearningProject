@@ -1,5 +1,8 @@
 # deepLearningProject - Wiem CHOUCHANE & Maud GELLEE
 
+[GitHub repo](https://github.com/maudg94/deepLearningProject)
+
+
 # Abstract 
 
 The purpose of the project is to present the deep learning model we created during our final project for the deep learning course at EFREI. We've chosen to learn more about image classification as it was a subject that interested us from the beginning and because it has many applications from fake news detection to computer vision. We wanted to apply what we had learnt during our deep learning course on a real case and for that we chose a Kaggle competition as explained further. Therefore, we had the opportunity to try various techniques and compare them.
